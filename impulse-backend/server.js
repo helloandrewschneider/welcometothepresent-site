@@ -13,15 +13,13 @@ const io = new Server(server, {
 });
 
 let waiting = null;
-const activePairs = new Map(); // socket.id => { partner, state }
+const activePairs = new Map(); // socket.id => { partner, ready }
 
 function setupPairing(socketA, socketB) {
   console.log(`🔗 Pairing ${socketA.id} with ${socketB.id}`);
 
   activePairs.set(socketA.id, { partner: socketB, ready: false });
   activePairs.set(socketB.id, { partner: socketA, ready: false });
-
-  const sendStatus = (socket, msg) => socket.emit('status', msg);
 
   const checkAndStart = () => {
     const a = activePairs.get(socketA.id);
@@ -49,8 +47,8 @@ function setupPairing(socketA, socketB) {
     checkAndStart();
   });
 
-  sendStatus(socketA, 'Partner found! Waiting for your confirmation.');
-  sendStatus(socketB, 'Partner found! Waiting for your confirmation.');
+  socketA.emit('status', 'Partner found! Waiting for your confirmation.');
+  socketB.emit('status', 'Partner found! Waiting for your confirmation.');
 }
 
 io.on('connection', socket => {
@@ -60,11 +58,12 @@ io.on('connection', socket => {
     socket.emit('ntp-pong', Date.now(), clientSent);
   });
 
-  if (!waiting) {
+  // Guard against overwriting pairing state
+  if (!waiting && !activePairs.has(socket.id)) {
     waiting = socket;
     socket.emit('status', 'Waiting for a partner…');
     console.log(`🕓 ${socket.id} is now waiting`);
-  } else {
+  } else if (waiting && waiting !== socket && !activePairs.has(socket.id)) {
     const partner = waiting;
     waiting = null;
     setupPairing(partner, socket);
@@ -85,8 +84,12 @@ io.on('connection', socket => {
       activePairs.delete(partner.id);
       partner.emit('status', 'Your partner disconnected. Waiting for someone new…');
       partner.removeAllListeners('ready');
-      waiting = partner;
-      console.log(`🔄 Re-queued ${partner.id} after disconnect from ${socket.id}`);
+
+      // Only reassign if they’re not already in waiting
+      if (!waiting && partner.connected) {
+        waiting = partner;
+        console.log(`🔄 Re-queued ${partner.id}`);
+      }
     }
   });
 });
