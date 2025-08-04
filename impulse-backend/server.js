@@ -22,7 +22,7 @@ io.on('connection', socket => {
     socket.emit('ntp-pong', Date.now(), clientSent);
   });
 
-  // Matchmaking logic
+  // Matchmaking
   if (!waiting) {
     waiting = socket;
     socket.emit('status', 'Waiting for a partner…');
@@ -30,12 +30,27 @@ io.on('connection', socket => {
     const partner = waiting;
     waiting = null;
 
-    const delay = 3000;
-    const startTime = Date.now() + delay;
+    partner.emit('status', 'Partner found! Waiting for your confirmation.');
+    socket.emit('status', 'Partner found! Waiting for your confirmation.');
 
-    [partner, socket].forEach(s => {
-      s.emit('status', 'Partner found!');
-      s.emit('start', startTime, delay);
+    let bothReady = 0;
+    const doStart = () => {
+      const delay = 3000;
+      const startTime = Date.now() + delay;
+      [partner, socket].forEach(s => {
+        s.emit('start', startTime, delay);
+      });
+      console.log('🎬 Both users ready. Sync start at', startTime);
+    };
+
+    partner.on('ready', () => {
+      bothReady++;
+      if (bothReady === 2) doStart();
+    });
+
+    socket.on('ready', () => {
+      bothReady++;
+      if (bothReady === 2) doStart();
     });
   }
 
