@@ -41,7 +41,11 @@
       socket.on('connect', async () => {
         status.textContent = 'Calibrating clock…';
         clockOffset = await estimateClockOffset(socket);
-        status.textContent = 'Waiting for a partner…';
+
+        // Only update if it hasn't been replaced already
+        if (!status.textContent.includes("Partner found")) {
+          status.textContent = 'Waiting for a partner…';
+        }
       });
 
       socket.on('status', (msg) => {
