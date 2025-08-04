@@ -1,4 +1,3 @@
-
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -8,7 +7,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "https://welcometothepresent.com",
     methods: ["GET", "POST"]
   }
 });
@@ -17,42 +16,56 @@ let waiting = null;
 
 io.on('connection', socket => {
   console.log('⚡ Client connected:', socket.id);
-  socket.emit('connected');
+
+  // NTP-style handshake
+  socket.on('ntp-ping', (clientSent) => {
+    socket.emit('ntp-pong', Date.now(), clientSent);
+  });
 
   if (!waiting) {
     waiting = socket;
     socket.emit('status', 'Waiting for a partner…');
+    console.log(`🕓 ${socket.id} is now waiting for a partner`);
   } else {
     const partner = waiting;
     waiting = null;
+    console.log(`🔗 Pairing ${socket.id} with ${partner.id}`);
 
-    partner.emit('status', 'Partner found! Ready when you are.');
-    socket.emit('status', 'Partner found! Ready when you are.');
+    let bothReady = 0;
 
-    let readyCount = 0;
-
-    const checkStart = () => {
-      readyCount++;
-      if (readyCount === 2) {
-        const delayMs = 3000;
-        const startTime = Date.now() + delayMs;
-        partner.emit('start', startTime, delayMs);
-        socket.emit('start', startTime, delayMs);
-      }
+    const doStart = () => {
+      const delay = 3000;
+      const startTime = Date.now() + delay;
+      console.log('🚦 Sending "start" to both users at', startTime);
+      [partner, socket].forEach(s => {
+        s.emit('start', startTime, delay);
+      });
     };
 
-    partner.once('ready', checkStart);
-    socket.once('ready', checkStart);
+    const handleReady = (label) => {
+      bothReady++;
+      console.log(`✅ ${label} is ready (${bothReady}/2)`);
+      if (bothReady === 2) doStart();
+    };
+
+    socket.on('ready', () => handleReady(`Socket (${socket.id})`));
+    partner.on('ready', () => handleReady(`Partner (${partner.id})`));
+
+    partner.emit('status', 'Partner found! Waiting for your confirmation.');
+    socket.emit('status', 'Partner found! Waiting for your confirmation.');
   }
 
   socket.on('disconnect', () => {
-    console.log('⚠️ Client disconnected:', socket.id);
     if (waiting === socket) {
       waiting = null;
+      console.log(`❌ ${socket.id} disconnected (was waiting)`);
+    } else {
+      console.log(`❌ ${socket.id} disconnected`);
     }
   });
 });
 
-server.listen(3000, () => {
-  console.log('🚀 Server listening on port 3000');
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🔊 Sync server running on port ${PORT}`);
 });
