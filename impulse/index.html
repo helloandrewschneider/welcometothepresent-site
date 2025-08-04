@@ -132,7 +132,7 @@
       startBtn.remove();
       context = initAudioContext();
       try {
-        audioBuffer = await loadAudio("https://audio.welcometothepresent.com/waiting-music.mp3");
+        audioBuffer = await loadAudio("https://audio-cors-proxy.helloandrewschneider.workers.dev/waiting-music.mp3");
       } catch (e) {
         status.textContent = "⚠️ Failed to load audio.";
         return;
