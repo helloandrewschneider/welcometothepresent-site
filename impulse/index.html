@@ -25,6 +25,7 @@
     const button = document.getElementById('playBtn');
     const audio = document.getElementById('audio');
     let clockOffset = 0;
+    let localReady = false;
 
     socket.on('connect', async () => {
       status.textContent = 'Calibrating clock…';
@@ -47,9 +48,13 @@
       button.disabled = false;
 
       setTimeout(() => {
-        audio.currentTime = 0;
-        audio.play();
-        status.textContent = '🎶 Playing now';
+        if (localReady) {
+          audio.currentTime = 0;
+          audio.play();
+          status.textContent = '🎶 Playing now';
+        } else {
+          status.textContent = '🎵 Countdown started, but you haven’t clicked ready.';
+        }
       }, wait);
     });
 
@@ -59,6 +64,7 @@
       btn.style.marginTop = "1em";
       btn.onclick = () => {
         socket.emit('ready');
+        localReady = true;
         btn.disabled = true;
         btn.textContent = "Waiting for your partner...";
       };
