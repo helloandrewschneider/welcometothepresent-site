@@ -40,12 +40,10 @@
       const source = context.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(context.destination);
-      const now = context.currentTime;
       const delay = (startTime - Date.now()) / 1000;
       source.start(context.currentTime + delay);
       status.textContent = '🎶 Playing now';
 
-      // Optional sync check UI
       setTimeout(() => {
         const syncPrompt = document.createElement('p');
         syncPrompt.innerHTML = "Did the audio start in sync?";
@@ -74,7 +72,9 @@
       socket.on('connect', async () => {
         status.textContent = 'Calibrating clock…';
         clockOffset = await estimateClockOffset(socket);
-        status.textContent = 'Waiting for a partner…';
+        if (!status.textContent.includes("Partner found")) {
+          status.textContent = 'Waiting for a partner…';
+        }
       });
 
       socket.on('status', (msg) => {
@@ -87,8 +87,8 @@
 
       socket.on('start', async (serverStartTime, delayMs) => {
         const clientStartTime = serverStartTime - clockOffset;
-
         status.textContent = `Starting in ${((clientStartTime - Date.now()) / 1000).toFixed(1)}s…`;
+
         context.resume().then(() => {
           if (localReady && audioBuffer) {
             scheduleAudio(clientStartTime);
