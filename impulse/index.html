@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Synced Audio NTP</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script type="module" src="ntp.js"></script>
+</head>
+<body>
+  <!--
+  <script>
+    const pwd = prompt("Enter password:");
+    if (pwd !== "sunbeam2025") {
+      document.body.innerHTML = "<h2 style='color:white'>Access denied.</h2>";
+      throw new Error("Blocked");
+    }
+  </script>
+  -->
+  <h1>Welcome to the Present</h1>
+  <p id="status">Connecting…</p>
+  <button id="playBtn" disabled>🔊 Waiting to sync...</button>
+  <audio id="audio" src="https://audio.welcometothepresent.com/PRESENT-20250802-THEREHEARSAL-scratch02.mp3" preload="auto"></audio>
+
+  <script type="module">
+    import { estimateClockOffset } from './ntp.js';
+
+    const socket = io("https://sync.welcometothepresent.com", {
+      transports: ["websocket"],
+    });
+
+    const status = document.getElementById('status');
+    const button = document.getElementById('playBtn');
+    const audio = document.getElementById('audio');
+    let clockOffset = 0;
+
+    socket.on('connect', async () => {
+      status.textContent = 'Calibrating clock…';
+      clockOffset = await estimateClockOffset(socket);
+      status.textContent = 'Waiting for a partner…';
+    });
+
+    socket.on('status', (msg) => {
+      status.textContent = msg;
+    });
+
+    socket.on('start', (serverStartTime, delayMs) => {
+      const clientStartTime = serverStartTime - clockOffset;
+      const wait = clientStartTime - Date.now();
+
+      status.textContent = `Starting in ${(wait / 1000).toFixed(1)}s…`;
+      button.disabled = false;
+
+      setTimeout(() => {
+        audio.currentTime = 0;
+        audio.play();
+        status.textContent = '🎶 Playing now';
+      }, wait);
+    });
+  </script>
+</body>
+</html>
