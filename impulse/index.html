@@ -23,12 +23,16 @@
     const syncBtn = document.getElementById('playBtn');
     const audio = document.getElementById('audio');
 
-    let socket;
+    let socket = null;
     let clockOffset = 0;
     let localReady = false;
+    let hasConnected = false;
 
     function initSocket() {
-      if (socket) return;
+      if (hasConnected || socket) return;
+
+      console.log("📡 Initializing socket…");
+      hasConnected = true;
 
       socket = io("https://impulse-backend.fly.dev", {
         transports: ["websocket"]
