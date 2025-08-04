@@ -26,6 +26,11 @@
   <button id="playBtn" disabled>🔊 Waiting to sync...</button>
   <audio id="audio" src="https://audio.welcometothepresent.com/PRESENT-20250802-THEREHEARSAL-scratch02.mp3" preload="auto"></audio>
 
+<button onclick="document.getElementById('audio').play()">Play Manually</button>
+
+
+
+
   <script type="module">
     import { estimateClockOffset } from './ntp.js';
 
