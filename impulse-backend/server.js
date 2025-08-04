@@ -13,9 +13,13 @@ const io = new Server(server, {
 });
 
 let waiting = null;
+const activePairs = new Map(); // socket.id => partner
 
 function setupPairing(socketA, socketB) {
   console.log(`🔗 Pairing ${socketA.id} with ${socketB.id}`);
+
+  activePairs.set(socketA.id, socketB);
+  activePairs.set(socketB.id, socketA);
 
   let bothReady = 0;
 
@@ -59,11 +63,22 @@ io.on('connection', socket => {
   }
 
   socket.on('disconnect', () => {
+    console.log(`❌ ${socket.id} disconnected`);
+
     if (waiting === socket) {
       waiting = null;
-      console.log(`❌ ${socket.id} disconnected (was waiting)`);
-    } else {
-      console.log(`❌ ${socket.id} disconnected`);
+      console.log(`🧹 Removed ${socket.id} from waiting queue`);
+    }
+
+    const partner = activePairs.get(socket.id);
+    if (partner) {
+      activePairs.delete(socket.id);
+      activePairs.delete(partner.id);
+
+      console.log(`🔄 Partner ${partner.id} also removed from pairing`);
+
+      partner.emit('status', 'Your partner disconnected. Refresh to restart.');
+      partner.removeAllListeners('ready');
     }
   });
 });
