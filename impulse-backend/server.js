@@ -76,9 +76,11 @@ io.on('connection', socket => {
       activePairs.delete(partner.id);
 
       console.log(`🔄 Partner ${partner.id} also removed from pairing`);
-
-      partner.emit('status', 'Your partner disconnected. Refresh to restart.');
+      partner.emit('status', 'Your partner disconnected. Waiting for someone new…');
       partner.removeAllListeners('ready');
+
+      // ✅ Re-queue the partner for a new match
+      waiting = partner;
     }
   });
 });
