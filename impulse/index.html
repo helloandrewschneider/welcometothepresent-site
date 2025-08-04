@@ -24,6 +24,7 @@
     let hasConnected = false;
     let audioBuffer = null;
     let context = null;
+    let readyBtn = null;
 
     function initAudioContext() {
       context = new (window.AudioContext || window.webkitAudioContext)();
@@ -43,6 +44,11 @@
       const delay = (startTime - Date.now()) / 1000;
       source.start(context.currentTime + delay);
       status.textContent = '🎶 Playing now';
+
+      if (readyBtn) {
+        readyBtn.remove();
+        readyBtn = null;
+      }
 
       setTimeout(() => {
         const syncPrompt = document.createElement('p');
@@ -89,6 +95,10 @@
         const clientStartTime = serverStartTime - clockOffset;
         status.textContent = `Starting in ${((clientStartTime - Date.now()) / 1000).toFixed(1)}s…`;
 
+        if (readyBtn) {
+          readyBtn.textContent = "Starting…";
+        }
+
         context.resume().then(() => {
           if (localReady && audioBuffer) {
             scheduleAudio(clientStartTime);
@@ -104,16 +114,16 @@
     }
 
     function showReadyButton() {
-      const btn = document.createElement('button');
-      btn.textContent = "Yes, I'm ready";
-      btn.style.marginTop = "1em";
-      btn.onclick = () => {
+      readyBtn = document.createElement('button');
+      readyBtn.textContent = "Yes, I'm ready";
+      readyBtn.style.marginTop = "1em";
+      readyBtn.onclick = () => {
         localReady = true;
         socket.emit('ready');
-        btn.disabled = true;
-        btn.textContent = "Waiting for your partner...";
+        readyBtn.disabled = true;
+        readyBtn.textContent = "Waiting for your partner...";
       };
-      document.body.appendChild(btn);
+      document.body.appendChild(readyBtn);
     }
 
     function showManualPlayOption() {
