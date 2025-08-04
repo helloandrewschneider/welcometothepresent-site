@@ -11,28 +11,60 @@
   <h1>Welcome to the Present</h1>
   <p id="status">Tap the button to begin</p>
   <button id="startBtn">🔊 Begin</button>
-  <button id="playBtn" disabled style="display:none;">🔊 Waiting to sync...</button>
-
-  <audio id="audio" src="https://audio.welcometothepresent.com/waiting-music.mp3" preload="auto"></audio>
 
   <script type="module">
     import { estimateClockOffset } from './ntp.js';
 
     const status = document.getElementById('status');
     const startBtn = document.getElementById('startBtn');
-    const syncBtn = document.getElementById('playBtn');
-    const audio = document.getElementById('audio');
 
     let socket = null;
     let clockOffset = 0;
     let localReady = false;
     let hasConnected = false;
-    let readyBtn = null;
+    let audioBuffer = null;
+    let context = null;
+
+    function initAudioContext() {
+      context = new (window.AudioContext || window.webkitAudioContext)();
+      return context;
+    }
+
+    async function loadAudio(url) {
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      return context.decodeAudioData(arrayBuffer);
+    }
+
+    function scheduleAudio(startTime) {
+      const source = context.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(context.destination);
+      const now = context.currentTime;
+      const delay = (startTime - Date.now()) / 1000;
+      source.start(context.currentTime + delay);
+      status.textContent = '🎶 Playing now';
+
+      // Optional sync check UI
+      setTimeout(() => {
+        const syncPrompt = document.createElement('p');
+        syncPrompt.innerHTML = "Did the audio start in sync?";
+        const yes = document.createElement('button');
+        yes.textContent = "✅ Yes";
+        const no = document.createElement('button');
+        no.textContent = "❌ No";
+        no.onclick = () => location.reload();
+        yes.onclick = () => {
+          yes.remove();
+          no.remove();
+          syncPrompt.remove();
+        };
+        document.body.append(syncPrompt, yes, no);
+      }, source.buffer.duration * 1000);
+    }
 
     function initSocket() {
       if (hasConnected || socket) return;
-
-      console.log("📡 Initializing socket…");
       hasConnected = true;
 
       socket = io("https://impulse-backend.fly.dev", {
@@ -42,9 +74,7 @@
       socket.on('connect', async () => {
         status.textContent = 'Calibrating clock…';
         clockOffset = await estimateClockOffset(socket);
-        if (!status.textContent.includes("Partner found")) {
-          status.textContent = 'Waiting for a partner…';
-        }
+        status.textContent = 'Waiting for a partner…';
       });
 
       socket.on('status', (msg) => {
@@ -55,29 +85,17 @@
         }
       });
 
-      socket.on('start', (serverStartTime, delayMs) => {
+      socket.on('start', async (serverStartTime, delayMs) => {
         const clientStartTime = serverStartTime - clockOffset;
-        const wait = clientStartTime - Date.now();
 
-        console.log("[socket] start:", serverStartTime, "in", wait, "ms");
-        status.textContent = `Starting in ${(wait / 1000).toFixed(1)}s…`;
-        if (readyBtn) {
-          readyBtn.textContent = "Starting...";
-        }
-
-        setTimeout(() => {
-          if (localReady) {
-            audio.currentTime = 0;
-            audio.play();
-            status.textContent = '🎶 Playing now';
+        status.textContent = `Starting in ${((clientStartTime - Date.now()) / 1000).toFixed(1)}s…`;
+        context.resume().then(() => {
+          if (localReady && audioBuffer) {
+            scheduleAudio(clientStartTime);
           } else {
-            status.textContent = '🎵 Countdown started, but you haven’t clicked ready.';
+            showManualPlayOption();
           }
-          if (readyBtn) {
-            readyBtn.remove();
-            readyBtn = null;
-          }
-        }, wait);
+        });
       });
 
       socket.onAny((event, ...args) => {
@@ -86,20 +104,39 @@
     }
 
     function showReadyButton() {
-      readyBtn = document.createElement('button');
-      readyBtn.textContent = "Yes, I'm ready";
-      readyBtn.style.marginTop = "1em";
-      readyBtn.onclick = () => {
+      const btn = document.createElement('button');
+      btn.textContent = "Yes, I'm ready";
+      btn.style.marginTop = "1em";
+      btn.onclick = () => {
         localReady = true;
         socket.emit('ready');
-        readyBtn.disabled = true;
-        readyBtn.textContent = "Waiting for your partner...";
+        btn.disabled = true;
+        btn.textContent = "Waiting for your partner...";
       };
-      document.body.appendChild(readyBtn);
+      document.body.appendChild(btn);
     }
 
-    startBtn.addEventListener('click', () => {
+    function showManualPlayOption() {
+      const fallback = document.createElement('button');
+      fallback.textContent = "🔄 Tap to start audio";
+      fallback.onclick = () => {
+        if (audioBuffer) {
+          scheduleAudio(Date.now());
+          fallback.remove();
+        }
+      };
+      document.body.appendChild(fallback);
+    }
+
+    startBtn.addEventListener('click', async () => {
       startBtn.remove();
+      context = initAudioContext();
+      try {
+        audioBuffer = await loadAudio("https://audio.welcometothepresent.com/waiting-music.mp3");
+      } catch (e) {
+        status.textContent = "⚠️ Failed to load audio.";
+        return;
+      }
       initSocket();
     });
   </script>
