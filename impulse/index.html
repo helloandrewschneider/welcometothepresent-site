@@ -8,34 +8,17 @@
   <script type="module" src="ntp.js"></script>
 </head>
 <body>
-  <!--
-  <script>
-    const pwd = prompt("Enter password:");
-    if (pwd !== "sunbeam2025") {
-      document.body.innerHTML = "<h2 style='color:white'>Access denied.</h2>";
-      throw new Error("Blocked");
-    }
-  </script>
-  -->
   <h1>Welcome to the Present</h1>
-  <!-- test commit -->
-   <p style="color: yellow; font-size: 0.9em;">[This is a test deploy — visible change]</p>
-
-  <p style="font-size:0.9em">[test deploy]</p>
   <p id="status">Connecting…</p>
   <button id="playBtn" disabled>🔊 Waiting to sync...</button>
-  <audio id="audio" src="https://audio.welcometothepresent.com/PRESENT-20250802-THEREHEARSAL-scratch02.mp3" preload="auto"></audio>
 
-<button onclick="document.getElementById('audio').play()">Play Manually</button>
-
-
-
+  <audio id="audio" src="https://welcometothepresent.com/media/waiting-music.mp3" preload="auto"></audio>
 
   <script type="module">
     import { estimateClockOffset } from './ntp.js';
 
     const socket = io("https://impulse-backend.fly.dev", {
-      transports: ["websocket"],
+      transports: ["websocket"]
     });
 
     const status = document.getElementById('status');
@@ -51,6 +34,9 @@
 
     socket.on('status', (msg) => {
       status.textContent = msg;
+      if (msg.includes('Partner found')) {
+        showReadyButton();
+      }
     });
 
     socket.on('start', (serverStartTime, delayMs) => {
@@ -66,6 +52,18 @@
         status.textContent = '🎶 Playing now';
       }, wait);
     });
+
+    function showReadyButton() {
+      const btn = document.createElement('button');
+      btn.textContent = "Yes, I'm ready";
+      btn.style.marginTop = "1em";
+      btn.onclick = () => {
+        socket.emit('ready');
+        btn.disabled = true;
+        btn.textContent = "Waiting for your partner...";
+      };
+      document.body.appendChild(btn);
+    }
   </script>
 </body>
 </html>
