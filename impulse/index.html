@@ -27,6 +27,7 @@
     let clockOffset = 0;
     let localReady = false;
     let hasConnected = false;
+    let readyBtn = null;
 
     function initSocket() {
       if (hasConnected || socket) return;
@@ -41,8 +42,6 @@
       socket.on('connect', async () => {
         status.textContent = 'Calibrating clock…';
         clockOffset = await estimateClockOffset(socket);
-
-        // Only update if it hasn't been replaced already
         if (!status.textContent.includes("Partner found")) {
           status.textContent = 'Waiting for a partner…';
         }
@@ -62,7 +61,9 @@
 
         console.log("[socket] start:", serverStartTime, "in", wait, "ms");
         status.textContent = `Starting in ${(wait / 1000).toFixed(1)}s…`;
-        syncBtn.disabled = false;
+        if (readyBtn) {
+          readyBtn.textContent = "Starting...";
+        }
 
         setTimeout(() => {
           if (localReady) {
@@ -71,6 +72,10 @@
             status.textContent = '🎶 Playing now';
           } else {
             status.textContent = '🎵 Countdown started, but you haven’t clicked ready.';
+          }
+          if (readyBtn) {
+            readyBtn.remove();
+            readyBtn = null;
           }
         }, wait);
       });
@@ -81,16 +86,16 @@
     }
 
     function showReadyButton() {
-      const btn = document.createElement('button');
-      btn.textContent = "Yes, I'm ready";
-      btn.style.marginTop = "1em";
-      btn.onclick = () => {
+      readyBtn = document.createElement('button');
+      readyBtn.textContent = "Yes, I'm ready";
+      readyBtn.style.marginTop = "1em";
+      readyBtn.onclick = () => {
         localReady = true;
         socket.emit('ready');
-        btn.disabled = true;
-        btn.textContent = "Waiting for your partner...";
+        readyBtn.disabled = true;
+        readyBtn.textContent = "Waiting for your partner...";
       };
-      document.body.appendChild(btn);
+      document.body.appendChild(readyBtn);
     }
 
     startBtn.addEventListener('click', () => {
