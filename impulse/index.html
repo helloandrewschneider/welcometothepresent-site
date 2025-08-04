@@ -17,59 +17,74 @@
   <script type="module">
     import { estimateClockOffset } from './ntp.js';
 
-    const socket = io("https://impulse-backend.fly.dev", {
-      transports: ["websocket"]
-    });
-
     const status = document.getElementById('status');
     const button = document.getElementById('playBtn');
     const audio = document.getElementById('audio');
+
+    let socket;
     let clockOffset = 0;
     let localReady = false;
 
-    socket.on('connect', async () => {
-      status.textContent = 'Calibrating clock…';
-      clockOffset = await estimateClockOffset(socket);
-      status.textContent = 'Waiting for a partner…';
-    });
+    function initSocket() {
+      if (socket) return;
 
-    socket.on('status', (msg) => {
-      status.textContent = msg;
-      if (msg.includes('Partner found')) {
-        showReadyButton();
-      }
-    });
+      socket = io("https://impulse-backend.fly.dev", {
+        transports: ["websocket"]
+      });
 
-    socket.on('start', (serverStartTime, delayMs) => {
-      const clientStartTime = serverStartTime - clockOffset;
-      const wait = clientStartTime - Date.now();
+      socket.on('connect', async () => {
+        status.textContent = 'Calibrating clock…';
+        clockOffset = await estimateClockOffset(socket);
+        status.textContent = 'Waiting for a partner…';
+      });
 
-      status.textContent = `Starting in ${(wait / 1000).toFixed(1)}s…`;
-      button.disabled = false;
-
-      setTimeout(() => {
-        if (localReady) {
-          audio.currentTime = 0;
-          audio.play();
-          status.textContent = '🎶 Playing now';
-        } else {
-          status.textContent = '🎵 Countdown started, but you haven’t clicked ready.';
+      socket.on('status', (msg) => {
+        console.log("[socket] status:", msg);
+        status.textContent = msg;
+        if (msg.includes('Partner found')) {
+          showReadyButton();
         }
-      }, wait);
-    });
+      });
+
+      socket.on('start', (serverStartTime, delayMs) => {
+        const clientStartTime = serverStartTime - clockOffset;
+        const wait = clientStartTime - Date.now();
+
+        console.log("[socket] start:", serverStartTime, "in", wait, "ms");
+        status.textContent = `Starting in ${(wait / 1000).toFixed(1)}s…`;
+        button.disabled = false;
+
+        setTimeout(() => {
+          if (localReady) {
+            audio.currentTime = 0;
+            audio.play();
+            status.textContent = '🎶 Playing now';
+          } else {
+            status.textContent = '🎵 Countdown started, but you haven’t clicked ready.';
+          }
+        }, wait);
+      });
+
+      socket.onAny((event, ...args) => {
+        console.log(`[socket] ${event}`, ...args);
+      });
+    }
 
     function showReadyButton() {
       const btn = document.createElement('button');
       btn.textContent = "Yes, I'm ready";
       btn.style.marginTop = "1em";
       btn.onclick = () => {
-        socket.emit('ready');
         localReady = true;
+        socket.emit('ready');
         btn.disabled = true;
         btn.textContent = "Waiting for your partner...";
       };
       document.body.appendChild(btn);
     }
+
+    // Start socket connection after user gesture
+    document.addEventListener('click', initSocket, { once: true });
   </script>
 </body>
 </html>
