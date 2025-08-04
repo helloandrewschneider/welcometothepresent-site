@@ -9,8 +9,9 @@
 </head>
 <body>
   <h1>Welcome to the Present</h1>
-  <p id="status">Connecting…</p>
-  <button id="playBtn" disabled>🔊 Waiting to sync...</button>
+  <p id="status">Tap the button to begin</p>
+  <button id="startBtn">🔊 Begin</button>
+  <button id="playBtn" disabled style="display:none;">🔊 Waiting to sync...</button>
 
   <audio id="audio" src="https://audio.welcometothepresent.com/waiting-music.mp3" preload="auto"></audio>
 
@@ -18,7 +19,8 @@
     import { estimateClockOffset } from './ntp.js';
 
     const status = document.getElementById('status');
-    const button = document.getElementById('playBtn');
+    const startBtn = document.getElementById('startBtn');
+    const syncBtn = document.getElementById('playBtn');
     const audio = document.getElementById('audio');
 
     let socket;
@@ -52,7 +54,7 @@
 
         console.log("[socket] start:", serverStartTime, "in", wait, "ms");
         status.textContent = `Starting in ${(wait / 1000).toFixed(1)}s…`;
-        button.disabled = false;
+        syncBtn.disabled = false;
 
         setTimeout(() => {
           if (localReady) {
@@ -83,8 +85,10 @@
       document.body.appendChild(btn);
     }
 
-    // Start socket connection after user gesture
-    document.addEventListener('click', initSocket, { once: true });
+    startBtn.addEventListener('click', () => {
+      startBtn.remove();
+      initSocket();
+    });
   </script>
 </body>
 </html>
