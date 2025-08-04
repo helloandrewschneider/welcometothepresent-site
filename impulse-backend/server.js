@@ -13,40 +13,48 @@ const io = new Server(server, {
 });
 
 let waiting = null;
-const activePairs = new Map(); // socket.id => partner
+const activePairs = new Map(); // socket.id => { partner, state }
 
 function setupPairing(socketA, socketB) {
   console.log(`🔗 Pairing ${socketA.id} with ${socketB.id}`);
 
-  activePairs.set(socketA.id, socketB);
-  activePairs.set(socketB.id, socketA);
+  activePairs.set(socketA.id, { partner: socketB, ready: false });
+  activePairs.set(socketB.id, { partner: socketA, ready: false });
 
-  let bothReady = 0;
+  const sendStatus = (socket, msg) => socket.emit('status', msg);
 
-  const doStart = () => {
-    const delay = 3000;
-    const startTime = Date.now() + delay;
-    console.log('🚦 Sending "start" to both users at', startTime);
-    [socketA, socketB].forEach(s => {
-      s.emit('start', startTime, delay);
-    });
+  const checkAndStart = () => {
+    const a = activePairs.get(socketA.id);
+    const b = activePairs.get(socketB.id);
+    if (a?.ready && b?.ready) {
+      const delay = 3000;
+      const startTime = Date.now() + delay;
+      console.log(`🚦 Starting playback at ${startTime} for ${socketA.id} and ${socketB.id}`);
+      socketA.emit('start', startTime, delay);
+      socketB.emit('start', startTime, delay);
+    }
   };
 
-  const handleReady = (label) => {
-    bothReady++;
-    console.log(`✅ ${label} is ready (${bothReady}/2)`);
-    if (bothReady === 2) doStart();
-  };
-
-  [socketA, socketB].forEach((socket, index) => {
-    const label = index === 0 ? `Socket A (${socket.id})` : `Socket B (${socket.id})`;
-    socket.on('ready', () => handleReady(label));
-    socket.emit('status', 'Partner found! Waiting for your confirmation.');
+  socketA.on('ready', () => {
+    console.log(`✅ ${socketA.id} is ready`);
+    const a = activePairs.get(socketA.id);
+    if (a) a.ready = true;
+    checkAndStart();
   });
+
+  socketB.on('ready', () => {
+    console.log(`✅ ${socketB.id} is ready`);
+    const b = activePairs.get(socketB.id);
+    if (b) b.ready = true;
+    checkAndStart();
+  });
+
+  sendStatus(socketA, 'Partner found! Waiting for your confirmation.');
+  sendStatus(socketB, 'Partner found! Waiting for your confirmation.');
 }
 
 io.on('connection', socket => {
-  console.log('⚡ Client connected:', socket.id);
+  console.log(`⚡ Client connected: ${socket.id}`);
 
   socket.on('ntp-ping', (clientSent) => {
     socket.emit('ntp-pong', Date.now(), clientSent);
@@ -55,7 +63,7 @@ io.on('connection', socket => {
   if (!waiting) {
     waiting = socket;
     socket.emit('status', 'Waiting for a partner…');
-    console.log(`🕓 ${socket.id} is now waiting for a partner`);
+    console.log(`🕓 ${socket.id} is now waiting`);
   } else {
     const partner = waiting;
     waiting = null;
@@ -63,24 +71,22 @@ io.on('connection', socket => {
   }
 
   socket.on('disconnect', () => {
-    console.log(`❌ ${socket.id} disconnected`);
+    console.log(`❌ Disconnected: ${socket.id}`);
 
     if (waiting === socket) {
       waiting = null;
-      console.log(`🧹 Removed ${socket.id} from waiting queue`);
+      console.log(`🧹 Cleared ${socket.id} from waiting`);
     }
 
-    const partner = activePairs.get(socket.id);
-    if (partner) {
+    const entry = activePairs.get(socket.id);
+    if (entry) {
+      const partner = entry.partner;
       activePairs.delete(socket.id);
       activePairs.delete(partner.id);
-
-      console.log(`🔄 Partner ${partner.id} also removed from pairing`);
       partner.emit('status', 'Your partner disconnected. Waiting for someone new…');
       partner.removeAllListeners('ready');
-
-      // ✅ Re-queue the partner for a new match
       waiting = partner;
+      console.log(`🔄 Re-queued ${partner.id} after disconnect from ${socket.id}`);
     }
   });
 });
