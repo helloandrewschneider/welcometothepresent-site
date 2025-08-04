@@ -14,9 +14,13 @@ const io = new Server(server, {
 
 let waiting = null;
 const activePairs = new Map(); // socket.id => { partner, ready }
+const paired = new Set(); // socket.id
 
 function setupPairing(socketA, socketB) {
   console.log(`🔗 Pairing ${socketA.id} with ${socketB.id}`);
+
+  paired.add(socketA.id);
+  paired.add(socketB.id);
 
   activePairs.set(socketA.id, { partner: socketB, ready: false });
   activePairs.set(socketB.id, { partner: socketA, ready: false });
@@ -58,16 +62,22 @@ io.on('connection', socket => {
     socket.emit('ntp-pong', Date.now(), clientSent);
   });
 
-  // Handle pairing logic
-  if (waiting && waiting !== socket && !activePairs.has(socket.id)) {
+  // Prevent double-assignment or re-queueing of paired sockets
+  if (paired.has(socket.id)) {
+    console.log(`🔒 ${socket.id} already paired, skipping`);
+    return;
+  }
+
+  // Try to pair if someone is waiting
+  if (waiting && waiting !== socket && !paired.has(waiting.id)) {
     const partner = waiting;
     waiting = null;
     setupPairing(partner, socket);
-    return; // ✅ Prevent further waiting assignment
+    return;
   }
 
-  // If not already paired, assign to waiting
-  if (!activePairs.has(socket.id)) {
+  // Otherwise mark this socket as waiting
+  if (!paired.has(socket.id)) {
     waiting = socket;
     socket.emit('status', 'Waiting for a partner…');
     console.log(`🕓 ${socket.id} is now waiting`);
@@ -86,10 +96,13 @@ io.on('connection', socket => {
       const partner = entry.partner;
       activePairs.delete(socket.id);
       activePairs.delete(partner.id);
+      paired.delete(socket.id);
+      paired.delete(partner.id);
+
       partner.emit('status', 'Your partner disconnected. Waiting for someone new…');
       partner.removeAllListeners('ready');
 
-      if (!waiting && partner.connected) {
+      if (!paired.has(partner.id)) {
         waiting = partner;
         console.log(`🔄 Re-queued ${partner.id}`);
       }
