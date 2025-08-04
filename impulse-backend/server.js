@@ -58,15 +58,19 @@ io.on('connection', socket => {
     socket.emit('ntp-pong', Date.now(), clientSent);
   });
 
-  // Guard against overwriting pairing state
-  if (!waiting && !activePairs.has(socket.id)) {
-    waiting = socket;
-    socket.emit('status', 'Waiting for a partner…');
-    console.log(`🕓 ${socket.id} is now waiting`);
-  } else if (waiting && waiting !== socket && !activePairs.has(socket.id)) {
+  // Handle pairing logic
+  if (waiting && waiting !== socket && !activePairs.has(socket.id)) {
     const partner = waiting;
     waiting = null;
     setupPairing(partner, socket);
+    return; // ✅ Prevent further waiting assignment
+  }
+
+  // If not already paired, assign to waiting
+  if (!activePairs.has(socket.id)) {
+    waiting = socket;
+    socket.emit('status', 'Waiting for a partner…');
+    console.log(`🕓 ${socket.id} is now waiting`);
   }
 
   socket.on('disconnect', () => {
@@ -85,7 +89,6 @@ io.on('connection', socket => {
       partner.emit('status', 'Your partner disconnected. Waiting for someone new…');
       partner.removeAllListeners('ready');
 
-      // Only reassign if they’re not already in waiting
       if (!waiting && partner.connected) {
         waiting = partner;
         console.log(`🔄 Re-queued ${partner.id}`);
