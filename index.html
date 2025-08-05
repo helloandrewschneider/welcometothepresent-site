@@ -554,7 +554,7 @@
     const audio = document.getElementById('audio-player');
     audio.src = 'https://audio.welcometothepresent.com/PRESENT-20250802-THEREHEARSAL-scratch03.mp3';
     audio.play();
-    setTimeout(beginAutoQuestions, 56000);
+    setTimeout(beginAutoQuestions, 55500);
   }
 
       function beginAutoQuestions() {
@@ -958,12 +958,13 @@
     }
 
     function drawFeatheredOverlay() {
-      const gradientBottom = ctx.createLinearGradient(0, height - 200, 0, height);
-      gradientBottom.addColorStop(0, 'transparent');
-      gradientBottom.addColorStop(0.5, 'rgba(0,0,0,0.5)');
-      gradientBottom.addColorStop(1, 'black');
-      ctx.fillStyle = gradientBottom;
-      ctx.fillRect(0, height - 200, width, 200);
+      const featherHeight = 150;
+      const gradient = ctx.createLinearGradient(0, height - featherHeight, 0, height);
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 1)');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, height - featherHeight, width, featherHeight);
     }
 
     function animate() {
