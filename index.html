@@ -340,7 +340,7 @@
 
 
 
-    <audio id="audio-player" autoplay></audio>
+    <audio id="audio-player" preload="auto"></audio>
 
   <audio id="waiting-music" src="https://audio.welcometothepresent.com/waiting-music.mp3" preload="auto"></audio>
 
@@ -464,6 +464,11 @@
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     sharedGain = audioCtx.createGain();
     sharedGain.connect(audioCtx.destination);
+
+    // Set the audio source early to trigger preload
+    const audio = document.getElementById('audio-player');
+    audio.src = 'https://audio.welcometothepresent.com/PRESENT-20250802-THEREHEARSAL-scratch03.mp3';
+
 
     // Fade out splash, then go fullscreen
     fadeOut('splash', () => {
