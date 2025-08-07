@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dot Trail Animation</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+    }
+    
+    .switch {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .2s;
+    border-radius: 20px;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .2s;
+    border-radius: 50%;
+  }
+
+  .switch input:checked + .slider {
+    background-color: #2196F3;
+  }
+
+  .switch input:checked + .slider:before {
+    transform: translateX(20px);
+  }
+</style>
+</head>
+<body>
+  <label class="switch">
+    <input type="checkbox" id="toggleLabels">
+    <span class="slider"></span>
+  </label>
+  <canvas id="dotCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("dotCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    const scale = 2;
+    canvas.width = width;
+    canvas.height = height;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    width /= scale;
+    height /= scale;
+
+    let leadDot = {
+      x: width / 2,
+      y: height * 0.5,
+      vx: 0,
+      vy: -1,
+    };
+
+    const trail = [];
+    const arrowLabels = [
+  "first date",
+  "best moment of life",
+  "never again",
+  "will remember this forever",
+  "diagnosis",
+  "vacation",
+  "staring contest",
+  "found",
+  "slightly worse",
+  "life changing",
+  "when i knew",
+  "when i thought i knew",
+  "forgot anniversary",
+  "immediate regret",
+  "want to go back",
+  "would do again",
+  "not worth it",
+  "never tell anyone",
+  "almost turned back",
+  "missed chance",
+  "i knew better",
+  "nearly perfect",
+  "broken promise",
+  "final goodbye",
+  "first kiss",
+  "stayed too long",
+  "left too early",
+  "no going back",
+  "felt seen",
+  "deep breath",
+  "almost brave",
+  "sunburned memory",
+  "everything changed",
+  "almost didn't go",
+  "forgot why",
+  "held hands",
+  "too loud",
+  "fell apart",
+  "got through",
+  "felt infinite",
+  "lost track",
+  "just missed it",
+  "couldn't sleep",
+  "woke up different",
+  "vanished",
+  "too quiet",
+  "you were there",
+  "i was late",
+  "not what it seemed",
+  "just a blur",
+  "so close",
+  "meant to be",
+  "accidental",
+  "finally said it",
+  "should've stayed",
+  "almost cried",
+  "almost lied",
+  "never told them",
+  "what i meant",
+  "we laughed",
+  "we didn't speak",
+  "changed direction",
+  "made it up",
+  "ran out",
+  "said nothing",
+  "what if",
+  "not enough",
+  "held breath",
+  "felt heavy",
+  "felt light",
+  "stood still",
+  "didn't notice",
+  "out of breath",
+  "felt known",
+  "too much",
+  "enough",
+  "forgot it happened",
+  "made a wish",
+  "looked back",
+  "kept walking",
+  "made sense",
+  "called home",
+  "not home",
+  "wrong turn",
+  "never saw it",
+  "waited",
+  "jumped in",
+  "gave up",
+  "gave in",
+  "waited too long",
+  "left behind",
+  "lost phone",
+  "found phone",
+  "watched them leave",
+  "was seen",
+  "locked out",
+  "locked in",
+  "opened the door",
+  "didn't answer",
+  "missed call",
+  "missed train",
+  "took the train",
+  "took the stairs",
+  "fell asleep",
+  "woke up early",
+  "shared a secret",
+  "read a note",
+  "wrote a note",
+  "tore it up",
+  "last photo",
+  "new beginning",
+  "not quite real",
+  "should've said hi",
+  "never saw again",
+  "tried again",
+  "tried once",
+  "changed mind",
+  "stayed quiet",
+  "everything hurt",
+  "everything clicked",
+  "changed forever",
+  "should’ve stayed home",
+  "didn't see it coming",
+  "back again",
+  "same mistake",
+  "felt different",
+  "no turning back",
+  "not what i hoped",
+  "almost worked",
+  "too far gone",
+  "heard the news",
+  "missed the sign",
+  "tried to fix it",
+  "kept quiet",
+  "not my story",
+  "barely made it",
+  "looked different then",
+  "made it worse",
+  "never enough time",
+  "like the movies",
+  "closed the door",
+  "opened the letter",
+  "called their name",
+  "the last time",
+  "should’ve waited",
+  "wrong place",
+  "same time next year",
+  "just in time",
+  "lost keys",
+  "heard my name",
+  "stayed for them",
+  "left for me",
+  "could’ve been",
+  "held on",
+  "let go",
+  "ran toward it",
+  "ran away",
+  "kept going",
+  "barely breathing",
+  "too soon",
+  "never again maybe",
+  "should’ve known",
+  "one more try",
+  "sat there",
+  "turned around",
+  "watched it fall",
+  "everything made sense",
+  "nothing made sense",
+  "felt old",
+  "felt new",
+  "i believed",
+  "i wanted to believe",
+  "left message",
+  "read it twice",
+  "ignored the call",
+  "showed up anyway",
+  "too late to matter",
+  "looked away",
+  "stood in the rain",
+  "first step",
+  "last step",
+  "couldn’t speak",
+  "remember the sound",
+  "found the note",
+  "wrote it down",
+  "never said it",
+  "stopped trying",
+  "kept the receipt",
+  "cried a little",
+  "not this time",
+  "broke the rule",
+  "kept the rule",
+  "burned the map",
+  "drove past",
+  "couldn’t go in",
+  "didn’t notice me",
+  "i almost asked",
+  "they almost smiled",
+  "same dream again",
+  "new street",
+  "old street",
+  "midnight call",
+  "early morning",
+  "didn't sleep",
+  "still waiting",
+  "forgot why i came",
+  "last time here",
+  "no answer",
+  "back where i started",
+  "only remembered later",
+  "too loud to think",
+  "so quiet it hurt",
+  "just shadows",
+  "kept the light on",
+  "wanted more",
+  "needed less",
+  "left a mark",
+  "looked familiar",
+  "didn't expect it"
+];
+
+let availableLabels = [...arrowLabels];
+function getUniqueLabel() {
+  if (availableLabels.length === 0) availableLabels = [...arrowLabels];
+  // Shuffle availableLabels once when it's refilled
+  for (let i = availableLabels.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [availableLabels[i], availableLabels[j]] = [availableLabels[j], availableLabels[i]];
+  }
+  return availableLabels.pop();
+}
+    let arrows = [];
+    let showLabels = false;
+    let scrollOffset = 0;
+    let scrollTarget = 0;
+    let frameCount = 0;
+    let targetX = leadDot.x;
+
+    function update() {
+      const leftBound = width * 0.15;
+      const rightBound = width * 0.85;
+
+      if (frameCount % 120 === 0) {
+        let min = Math.max(leftBound, leadDot.x - width * 0.25);
+        let max = Math.min(rightBound, leadDot.x + width * 0.25);
+        targetX = min + Math.random() * (max - min);
+      }
+
+      const dx = targetX - leadDot.x;
+      leadDot.vx = leadDot.vx * 0.98 + dx * 0.0008;
+
+      leadDot.x += leadDot.vx;
+      leadDot.y += leadDot.vy;
+
+      if (frameCount % 12 === 0) {
+        const rand = Math.random();
+        const isX = rand < 0.05;
+        const isO = rand >= 0.05 && rand < 0.06;
+        const dot = { x: leadDot.x, y: leadDot.y, isX, isO };
+        trail.push(dot);
+
+        // occasionally add arrow pointing to X
+        if (
+          isX &&
+          Math.random() < 0.2 &&
+          leadDot.y > -scrollOffset - height * 0.6 &&
+          leadDot.y < -scrollOffset + height * 0.4
+        ) {
+          const label = getUniqueLabel();
+          arrows.push({ dot, label, fromLeft: Math.random() < 0.5 });
+        }
+      }
+
+      if (trail.length > 1500) trail.shift();
+
+      const fluctuation = 0.3 + 0.15 * Math.sin(frameCount * 0.008);
+      scrollTarget = -leadDot.y + height * (0.15 + fluctuation);
+      scrollOffset += (scrollTarget - scrollOffset) * 0.005;
+      frameCount++;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate(0, scrollOffset);
+
+      for (let dot of trail) {
+        const screenY = dot.y + scrollOffset;
+        const distanceFromBottom = height - screenY;
+        const alpha = Math.max(0, Math.min(1, 0.3 + 0.7 * (distanceFromBottom / height)));
+
+        ctx.strokeStyle = `rgba(255, 255, 255, ${dot.isX || dot.isO ? 1 : alpha})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+
+        if (dot.isX) {
+          ctx.beginPath();
+          ctx.moveTo(dot.x - 6, dot.y - 6);
+          ctx.lineTo(dot.x + 6, dot.y + 6);
+          ctx.moveTo(dot.x + 6, dot.y - 6);
+          ctx.lineTo(dot.x - 6, dot.y + 6);
+          ctx.stroke();
+        } else if (dot.isO) {
+          ctx.beginPath();
+          ctx.arc(dot.x, dot.y, 6, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(dot.x, dot.y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(leadDot.x, leadDot.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // draw arrows
+      ctx.font = "10px sans-serif";
+      ctx.fillStyle = "white";
+      ctx.textAlign = "left";
+      arrows = arrows.filter(a => trail.includes(a.dot));
+      if (showLabels) {
+        for (const { dot, label, fromLeft } of arrows) {
+        const offsetX = fromLeft ? -30 : 30;
+        const textX = fromLeft ? dot.x - 128 : dot.x + 32;
+
+        ctx.beginPath();
+        ctx.moveTo(dot.x + (fromLeft ? -10 : 10), dot.y);
+        ctx.lineTo(dot.x + offsetX, dot.y - 10);
+        ctx.stroke();
+        ctx.fillText(label, textX, dot.y - 12);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function animate() {
+      update();
+      draw();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    document.getElementById("toggleLabels").addEventListener("change", (e) => {
+      showLabels = e.target.checked;
+    });
+
+    window.addEventListener("resize", () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      width /= scale;
+      height /= scale;
+    });
+  </script>
+</body>
+</html>
